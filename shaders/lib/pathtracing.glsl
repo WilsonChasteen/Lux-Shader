@@ -12,17 +12,6 @@ Path Tracing Implementation
 #extension GL_OES_standard_derivatives : enable
 #endif
 
-// Uniforms that will be available from composite.glsl or globally
-uniform mat4 gbufferProjectionInverse;
-uniform mat4 gbufferModelViewInverse; // For world space transforms later
-uniform sampler2D depthtex0;
-uniform sampler2D colortex0;
-uniform vec3 sunVec; // Expected to be in view space
-uniform vec3 cameraPosition; // World space camera position
-uniform float far;
-uniform float near;
-uniform mat4 gbufferProjection; // Added: Needed for screen-space ray marching projection
-
 // Helper function for depth linearization
 // Converts a raw depth texture value to a linear depth value in view space units.
 float getLinearDepth(float depthVal) {
