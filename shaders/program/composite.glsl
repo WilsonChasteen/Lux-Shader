@@ -97,7 +97,7 @@ void main()
 {
     vec4 color = texture2D(colortex0, texCoord);
     vec3 translucent = texture2D(colortex1,texCoord).rgb;
-	float z0 = texture2D(depthtex0, texCoord).r;
+	float z0 = texture2D(depthtex0, texCoord).r; // z0 is rawDepthComposite
 	float z1 = texture2D(depthtex1, texCoord).r;
 
 	vec4 screenPos = vec4(texCoord.x, texCoord.y, z0, 1.0);
@@ -168,12 +168,28 @@ void main()
 	#endif
 
 	#ifdef PATHTRACING
-		// Call tracePath function, passing appropriate parameters.
-		// For now, screenCoord can be texCoord and dither can be the existing dither variable.
 		vec3 pathtracedColor = tracePath(texCoord, dither);
-		// Blend the pathtracedColor with the existing color.rgb.
-		// A simple mix or additive blending can be used initially.
-		color.rgb = mix(color.rgb, pathtracedColor, 0.5); // Or some other blend factor
+
+		float rawDepthComposite = z0; // z0 is already texture2D(depthtex0, texCoord).r;
+		// near and far are standard uniforms, assumed available.
+		// GetLinearDepth function is available in this file.
+		float linearDepthComposite = GetLinearDepth(rawDepthComposite);
+		float viewDistanceComposite = linearDepthComposite * far;
+
+		// Define distances for path tracing fade-out. These values might need tuning.
+		const float PT_FADE_START_DIST = 64.0;  // Start fading path tracing effect
+		const float PT_FADE_END_DIST = 128.0; // Path tracing fully faded to 0 influence
+
+		float ptBlendFactor = 0.5; // Default blend factor for close distances
+
+		if (viewDistanceComposite > PT_FADE_START_DIST) {
+			float fadeAmount = clamp((viewDistanceComposite - PT_FADE_START_DIST) / (PT_FADE_END_DIST - PT_FADE_START_DIST), 0.0, 1.0);
+			ptBlendFactor = mix(0.5, 0.0, fadeAmount); // Mix from 0.5 down to 0.0
+		}
+		// Ensure factor is not negative if PT_FADE_END_DIST is accidentally less than PT_FADE_START_DIST
+		ptBlendFactor = max(0.0, ptBlendFactor);
+
+		color.rgb = mix(color.rgb, pathtracedColor, ptBlendFactor);
 		color.rgb = denoisePass(color.rgb, texCoord, dither);
 	#endif
 
