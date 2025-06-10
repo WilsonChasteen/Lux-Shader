@@ -1,10 +1,10 @@
-/* 
+/*
 ----------------------------------------------------------------
 Lux Shader by https://github.com/TechDevOnGithub/
-Based on BSL Shaders v7.1.05 by Capt Tatsu https://bitslablab.com 
+Based on BSL Shaders v7.1.05 by Capt Tatsu https://bitslablab.com
 See AGREEMENT.txt for more information.
 ----------------------------------------------------------------
-*/ 
+*/
 
 // Global Include
 #include "/lib/global.glsl"
@@ -64,7 +64,7 @@ float moonVisibility = clamp(dot(sunVec, -upVec) + 0.05, 0.0, 0.1) * 10.0;
 // Common Functions
 float GetLinearDepth(float depth)
 {
-   	return (2.0 * near) / (far + near - depth * (far - near));
+	return (2.0 * near) / (far + near - depth * (far - near));
 }
 
 // Includes
@@ -72,6 +72,7 @@ float GetLinearDepth(float depth)
 #include "/lib/util/dither.glsl"
 #include "/lib/lighting/ambientOcclusion.glsl"
 #include "/lib/color/dimensionColor.glsl"
+#include "/lib/pathtracing.glsl"
 
 #if defined FOG || defined BLACK_OUTLINE
 #include "/lib/atmospherics/waterFog.glsl"
@@ -87,6 +88,10 @@ float GetLinearDepth(float depth)
 #include "/lib/color/ambientColor.glsl"
 #endif
 
+#if defined PATHTRACING && !(defined AO || defined VOLUMETRIC_FOG)
+float dither = fract(sin(dot(gl_FragCoord.xy ,vec2(12.9898,78.233))) * 43758.5453);
+#endif
+
 // Program
 void main()
 {
@@ -94,7 +99,7 @@ void main()
     vec3 translucent = texture2D(colortex1,texCoord).rgb;
 	float z0 = texture2D(depthtex0, texCoord).r;
 	float z1 = texture2D(depthtex1, texCoord).r;
-	
+
 	vec4 screenPos = vec4(texCoord.x, texCoord.y, z0, 1.0);
 	vec4 viewPos = gbufferProjectionInverse * (screenPos * 2.0 - 1.0);
 	viewPos /= viewPos.w;
@@ -116,7 +121,7 @@ void main()
 	}
 	#endif
 
-	if (isEyeInWater == 1) 
+	if (isEyeInWater == 1)
 	{
 		#if defined OVERWORLD
 		vec3 absorptionBase = mix(vec3(0.6196, 0.8667 + moonVisibility * 0.1, 1.0), lightCol, 0.1 * eBS);
@@ -128,7 +133,7 @@ void main()
 
 		vec3 absorption = exp2((absorptionBase - 1.0) * (12.0 + GetLinearDepth(z0) * 80.0));
 		float mult = 1.0 / GetLuminance(exp2((absorptionBase - 1.0) * 12.0));
-		
+
 		absorption = mix(vec3(GetLuminance(absorption)), absorption, 1.0 - Max0(dot(sunVec, upVec)) * 0.4);
 
 		color.rgb *= absorption * (1.0 - rainStrength) + 1.0 * rainStrength;
@@ -144,7 +149,7 @@ void main()
 	#endif
 
 	#ifdef FOG
-	if (isEyeInWater != 0.0) 
+	if (isEyeInWater != 0.0)
 	{
 		float viewDist = length(viewPos.xyz);
 
@@ -161,17 +166,27 @@ void main()
 		}
 	}
 	#endif
-	
+
+	#ifdef PATHTRACING
+		// Call tracePath function, passing appropriate parameters.
+		// For now, screenCoord can be texCoord and dither can be the existing dither variable.
+		vec3 pathtracedColor = tracePath(texCoord, dither);
+		// Blend the pathtracedColor with the existing color.rgb.
+		// A simple mix or additive blending can be used initially.
+		color.rgb = mix(color.rgb, pathtracedColor, 0.5); // Or some other blend factor
+		color.rgb = denoisePass(color.rgb, texCoord, dither);
+	#endif
+
 	#ifdef VOLUMETRIC_FOG
 	vec3 vl = GetVolumetricLight(z0, z1, translucent, dither) + (dither - 0.5) / 255.0;
 	#else
 	vec3 vl = vec3(0.0);
     #endif
-	
+
     /* DRAWBUFFERS:01 */
 	gl_FragData[0] = color;
 	gl_FragData[1] = vec4(vl, 1.0);
-	
+
     #ifdef REFLECTION_PREVIOUS
     /* DRAWBUFFERS:015 */
 	gl_FragData[2] = vec4(pow(color.rgb, vec3(0.125)) * 0.5, float(z0 < 1.0));
