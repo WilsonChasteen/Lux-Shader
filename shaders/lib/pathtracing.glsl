@@ -46,8 +46,10 @@ vec3 tracePath(vec2 screenCoord, float dither) {
     }
 
     // Material for first hit (basic albedo from colortex0)
-    vec3 albedo0 = texture2D(colortex0, screenCoord).rgb;
-    albedo0 = pow(albedo0, vec3(2.2)) * 0.5; // Hack: attempt to linearize and reduce pre-lit effect
+    // vec3 albedo0 = texture2D(colortex0, screenCoord).rgb;
+    // albedo0 = pow(albedo0, vec3(2.2)) * 0.5; // Hack: attempt to linearize and reduce pre-lit effect
+    vec3 albedo0 = vec3(0.5, 0.5, 0.5); // DEBUG: Use constant grey albedo
+    return albedo0; // DEBUG: Output albedo0 directly
 
     // Direct Lighting at first hit
     float NdotL0 = max(0.0, dot(normal0, sunVec)); // sunVec is view space
