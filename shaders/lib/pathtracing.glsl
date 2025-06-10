@@ -158,7 +158,7 @@ vec3 tracePath(vec2 screenCoord, float dither) {
             currentRayOriginView = hitViewPosNext;
             currentNormalView = normalNext;
         } else { // Secondary ray hit sky or went out of bounds
-            vec3 skyColor = sunVec.y > 0.0 ? vec3(0.5, 0.7, 1.0) * 0.5 : vec3(0.05, 0.05, 0.1);
+            vec3 skyColor = vec3(0.01, 0.01, 0.015); // Very dark, slightly bluish grey for misses
             accumulatedColor += throughput * skyColor;
             break; // End path tracing for this pixel if secondary ray misses
         }
