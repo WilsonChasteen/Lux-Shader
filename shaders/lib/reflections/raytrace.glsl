@@ -116,7 +116,6 @@ vec4 RaytraceV2(
 	vec3 totalTracedVector = initialStepVector;
 	vec3 currentStepVector = initialStepVector;
 
-    int refinementIterations = 0;
     const int maxRefinementIterations = 3; // Max iterations for hit refinement
     const float hitRefinementStepFactor = 0.25; // Factor to reduce step size for refinement
 
@@ -168,10 +167,6 @@ vec4 RaytraceV2(
             vec3 bestHitViewPos = viewPos;
             float bestError = err;
 
-            // Store current state before refinement
-            vec3 preRefinementTotalVector = totalTracedVector;
-            // vec3 preRefinementViewPos = viewPos; // Not strictly needed if we restore totalTracedVector and recompute
-
             // Iterative Hit Refinement Loop
             // Attempts a few smaller steps to get closer to the actual intersection point.
             for (int k = 0; k < maxRefinementIterations; ++k) {
@@ -192,16 +187,10 @@ vec4 RaytraceV2(
                     bestError = currentRefinementError;
                     bestHitViewPos = viewPos;
                 } else {
-                    // Error increased or stayed same, refinement might be diverging or hit limit of precision.
-                    // Revert to the state before this refinement step if it made things worse, or just break.
-                    // For simplicity, we can just use the best one found so far and let next iteration (if any) try from there,
-                    // or simply break if error doesn't improve.
-                    // viewPos = bestHitViewPos; // Revert to best known, or remove this line to keep trying
                     break;
                 }
             }
-            viewPos = bestHitViewPos; // Use the best position found during refinement
-            // err = bestError; // err is already updated if a better hit was found, or loop broke.
+            viewPos = bestHitViewPos;
 
 			break; // Exit main ray marching loop after refinement phase
 		}
