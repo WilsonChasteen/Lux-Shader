@@ -7,7 +7,7 @@ See AGREEMENT.txt for more information.
 */
 
 // Settings
-#include "/lib/global.glsl"
+#include "/shaders/lib/global.glsl"
 
 // Fragment Shader
 #ifdef FSH
@@ -75,52 +75,52 @@ float GetLinearDepth(float depth)
 }
 
 // Includes
-#include "/lib/color/dimensionColor.glsl"
-#include "/lib/color/skyColor.glsl"
-#include "/lib/color/blocklightColor.glsl"
-#include "/lib/color/waterColor.glsl"
-#include "/lib/util/dither.glsl"
-#include "/lib/atmospherics/sky.glsl"
-#include "/lib/atmospherics/fog.glsl"
-#include "/lib/color/ambientColor.glsl"
-#include "/lib/atmospherics/borderFog.glsl"
-#include "/lib/util/spaceConversion.glsl"
+#include "/shaders/lib/color/dimensionColor.glsl"
+#include "/shaders/lib/color/skyColor.glsl"
+#include "/shaders/lib/color/blocklightColor.glsl"
+#include "/shaders/lib/color/waterColor.glsl"
+#include "/shaders/lib/util/dither.glsl"
+#include "/shaders/lib/atmospherics/sky.glsl"
+#include "/shaders/lib/atmospherics/fog.glsl"
+#include "/shaders/lib/color/ambientColor.glsl"
+#include "/shaders/lib/atmospherics/borderFog.glsl"
+#include "/shaders/lib/util/spaceConversion.glsl"
 
 #if AA == 2
-#include "/lib/vertex/jitter.glsl"
+#include "/shaders/lib/vertex/jitter.glsl"
 #endif
 
 #ifdef AO
-#include "/lib/lighting/ambientOcclusion.glsl"
+#include "/shaders/lib/lighting/ambientOcclusion.glsl"
 #endif
 
 #if defined MATERIAL_SUPPORT && defined REFLECTION_SPECULAR
-    #include "/lib/util/encode.glsl"        // Likely always needed for material data
-    #include "/lib/surface/materialDeferred.glsl" // Needed for GetMaterials
-    #include "/lib/reflections/complexFresnel.glsl" // Needed for fresnel calculation
+    #include "/shaders/lib/util/encode.glsl"        // Likely always needed for material data
+    #include "/shaders/lib/surface/materialDeferred.glsl" // Needed for GetMaterials
+    #include "/shaders/lib/reflections/complexFresnel.glsl" // Needed for fresnel calculation
 
     #ifdef PATHFINDER_REFLECTIONS
-        #include "/lib/reflections/pathfinder.glsl" // Our new engine
+        #include "/shaders/lib/reflections/pathfinder.glsl" // Our new engine
         // Pathfinder will eventually need sky/cloud/aurora includes too for missed rays
         // For now, let's keep these includes outside the #else, so both branches can use them.
     #else
-        #include "/lib/reflections/raytrace.glsl"
+        #include "/shaders/lib/reflections/raytrace.glsl"
         #ifdef REFLECTION_ROUGH
-            #include "/lib/reflections/roughReflections.glsl"
+            #include "/shaders/lib/reflections/roughReflections.glsl"
         #endif
-        #include "/lib/reflections/simpleReflections.glsl"
+        #include "/shaders/lib/reflections/simpleReflections.glsl"
     #endif
 
     // These are likely needed for both reflection methods if they reflect the sky
     #ifdef OVERWORLD
-    #include "/lib/atmospherics/clouds.glsl"
+    #include "/shaders/lib/atmospherics/clouds.glsl"
     #ifdef AURORA
-    #include "/lib/atmospherics/aurora.glsl"
+    #include "/shaders/lib/atmospherics/aurora.glsl"
     #endif
     #endif
     // End sky include also needed for both
     #ifdef END
-    #include "/lib/atmospherics/endSky.glsl"
+    #include "/shaders/lib/atmospherics/endSky.glsl"
     #endif
 
 #endif
