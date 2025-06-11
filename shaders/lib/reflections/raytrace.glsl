@@ -52,11 +52,11 @@ vec4 Raytrace(
 
     for (int i = 0; i < 30; i++)
 	{
-        pos = nvec3(gbufferProjection * nvec4(viewPos)) * 0.5 + 0.5;
+        pos = nvec3(gbufferProjection * nvec4(vec3(viewPos))) * 0.5 + 0.5; // Cast to vec3
 		if (pos.x < -0.05 || pos.x > 1.05 || pos.y < -0.05 || pos.y > 1.05) break;
 
 		vec3 rfragpos = vec3(pos.xy, texture2D(depthtex,pos.xy).r);
-        rfragpos = nvec3(gbufferProjectionInverse * nvec4(rfragpos * 2.0 - 1.0));
+        rfragpos = nvec3(gbufferProjectionInverse * nvec4(vec3(rfragpos * 2.0 - 1.0))); // Cast to vec3
 		dist = length(start - rfragpos);
 
         float err = length(viewPos - rfragpos);
@@ -123,7 +123,7 @@ vec4 RaytraceV2(
     for (int i = 0; i < 30; i++) // Max steps for ray marching
 	{
         // Project current view space position to screen space
-        pos = nvec3(gbufferProjection * nvec4(viewPos)) * 0.5 + 0.5;
+        pos = nvec3(gbufferProjection * nvec4(vec3(viewPos))) * 0.5 + 0.5; // Cast to vec3
 
 		// Off-Screen Ray Handling: If ray projects outside screen bounds
 		if (pos.x < -0.05 || pos.x > 1.05 || pos.y < -0.05 || pos.y > 1.05) {
@@ -135,7 +135,7 @@ vec4 RaytraceV2(
         // Get depth from depth texture at projected screen position
 		float depthSample = texture2D(depthtex,pos.xy).r;
         // Convert depth sample to view space position
-		vec3 surfaceViewPos = nvec3(gbufferProjectionInverse * nvec4(pos.xy * 2.0 - 1.0, depthSample * 2.0 - 1.0));
+		vec3 surfaceViewPos = nvec3(gbufferProjectionInverse * nvec4(vec3(pos.xy * 2.0 - 1.0, depthSample * 2.0 - 1.0))); // Cast to vec3
 		hitDist = length(startRayPos - surfaceViewPos); // Distance from ray start to this surface point
 
         float err = length(viewPos - surfaceViewPos); // Current error: distance between ray pos and surface pos
@@ -176,11 +176,11 @@ vec4 RaytraceV2(
                 viewPos = startRayPos + totalTracedVector * (dither * 0.05 + 0.975); // Apply dither for temporal stability
 
                 // Re-evaluate screen position and error with the new refined viewPos
-                pos = nvec3(gbufferProjection * nvec4(viewPos)) * 0.5 + 0.5;
+                pos = nvec3(gbufferProjection * nvec4(vec3(viewPos))) * 0.5 + 0.5; // Cast to vec3
                 if (pos.x < -0.05 || pos.x > 1.05 || pos.y < -0.05 || pos.y > 1.05) break; // Stop if refinement goes off-screen
 
                 depthSample = texture2D(depthtex,pos.xy).r;
-                surfaceViewPos = nvec3(gbufferProjectionInverse * nvec4(pos.xy * 2.0 - 1.0, depthSample * 2.0 - 1.0));
+                surfaceViewPos = nvec3(gbufferProjectionInverse * nvec4(vec3(pos.xy * 2.0 - 1.0, depthSample * 2.0 - 1.0))); // Cast to vec3
                 float currentRefinementError = length(viewPos - surfaceViewPos);
 
                 if (currentRefinementError < bestError) {
