@@ -1,10 +1,10 @@
-/*
+/* 
 ----------------------------------------------------------------
 Lux Shader by https://github.com/TechDevOnGithub/
-Based on BSL Shaders v7.1.05 by Capt Tatsu https://bitslablab.com
+Based on BSL Shaders v7.1.05 by Capt Tatsu https://bitslablab.com 
 See AGREEMENT.txt for more information.
 ----------------------------------------------------------------
-*/
+*/ 
 
 // Global Include
 #include "/lib/global.glsl"
@@ -31,7 +31,7 @@ uniform float far, near;
 uniform float frameTimeCounter;
 uniform float nightVision;
 uniform float rainStrength;
-uniform float screenBrightness;
+uniform float screenBrightness; 
 uniform float shadowFade;
 uniform float timeAngle, timeBrightness;
 uniform float viewWidth, viewHeight;
@@ -44,11 +44,9 @@ uniform mat4 shadowProjection;
 uniform mat4 shadowModelView;
 
 uniform sampler2D texture;
-uniform sampler2D depthtex0; // Made unconditional
 
-#ifdef MATERIAL_SUPPORT
-uniform sampler2D specular; // This would only be present if gbuffers_textured also handled full PBR, which it might not.
-uniform sampler2D normals;  // Same as above.
+#ifdef SOFT_PARTICLES
+uniform sampler2D depthtex0;
 #endif
 
 #if AA == 2
@@ -70,10 +68,7 @@ float frametime = frameTimeCounter * ANIMATION_SPEED;
 vec3 lightVec = sunVec * ((timeAngle < 0.5325 || timeAngle > 0.9675) ? 1.0 : -1.0);
 
 // Common Functions
-#ifdef SOFT_PARTICLES // This GetLinearDepth is only needed if SOFT_PARTICLES is on.
-                      // However, a global GetLinearDepth might be available from common.glsl via global.glsl
-                      // For safety, keeping it conditional if it's only used by soft particles here.
-                      // If other features in this specific file started using it, it would need to be unconditional too.
+#ifdef SOFT_PARTICLES
 float GetLinearDepth(float depth)
 {
    return (2.0 * near) / (far + near - depth * (far - near));
@@ -97,7 +92,7 @@ float GetLinearDepth(float depth)
 void main()
 {
     vec4 albedo = texture2D(texture, texCoord) * color;
-
+	
 	if (albedo.a > 0.001)
 	{
 		vec2 lightmap = clamp(lmCoord, vec2(0.0), vec2(1.0));
@@ -117,10 +112,10 @@ void main()
 		#endif
 
 		float NdotL = 1.0;
-
+	
 		float quarterNdotU = clamp(0.25 * dot(normal, upVec) + 0.75, 0.5, 1.0);
 		quarterNdotU *= quarterNdotU;
-
+		
 		vec3 shadow = vec3(0.0);
 
 		#ifdef OVERWORLD
@@ -133,14 +128,15 @@ void main()
 	}
 
 	#ifdef SOFT_PARTICLES
-	// Ensure LinearizeDepth is available here. If the local one was removed and no global one is included, this will fail.
-	// Assuming LinearizeDepth is accessible (e.g., from global.glsl or if kept locally for SOFT_PARTICLES)
-	float linearZ = GetLinearDepth(gl_FragCoord.z) * (far - near); // This might be problematic if GetLinearDepth was removed and not globally available
+	float linearZ = GetLinearDepth(gl_FragCoord.z) * (far - near);
 	float backZ = texture2D(depthtex0, gl_FragCoord.xy / vec2(viewWidth, viewHeight)).r;
-	float linearBackZ = GetLinearDepth(backZ) * (far - near); // Same here
+	float linearBackZ = GetLinearDepth(backZ) * (far - near);
 	float difference = Saturate(linearBackZ - linearZ);
 	difference = Smooth3(difference);
 
+	// float opaqueThreshold = fract(InterleavedGradientNoise(gl_FragCoord.xy) + frameTimeCounter * 38.34718);
+
+	/*if (albedo.a > 0.999) albedo.a *= float(difference > opaqueThreshold);*/
 	albedo.a *= difference;
 	#endif
 
@@ -148,14 +144,10 @@ void main()
     gl_FragData[0] = albedo;
 
 	#ifdef MATERIAL_SUPPORT
-	// This program (gbuffers_textured) typically does not output to these material buffers
-	// as it handles simple textured surfaces (like particles, beacon beams, text)
-	// not full PBR materials. If it were to, these would be needed.
-	// For now, this is likely dead code or for a variant not being used.
 	/* DRAWBUFFERS:0367 */
-	// gl_FragData[1] = vec4(0.0, 0.0, 0.0, 1.0); // smoothness, metalData, skymapMod
-	// gl_FragData[2] = vec4(0.0, 0.0, 0.0, 1.0); // encodedNormal, depthNonLinear (unused)
-	// gl_FragData[3] = vec4(0.0, 0.0, 0.0, 1.0); // rawAlbedo
+	gl_FragData[1] = vec4(0.0, 0.0, 0.0, 1.0);
+	gl_FragData[2] = vec4(0.0, 0.0, 0.0, 1.0);
+	gl_FragData[3] = vec4(0.0, 0.0, 0.0, 1.0);
 	#endif
 }
 
@@ -188,7 +180,7 @@ uniform int frameCounter;
 uniform float viewWidth, viewHeight;
 #endif
 
-#ifdef SOFT_PARTICLES // near and far only needed by VSH if SOFT_PARTICLES logic is here
+#ifdef SOFT_PARTICLES
 uniform float far, near;
 #endif
 
@@ -208,8 +200,8 @@ float frametime = frameTimeCounter * ANIMATION_SPEED;
 #endif
 
 // Common Functions
-#ifdef SOFT_PARTICLES // Local GetLinearDepth/GetLogarithmicDepth for VSH if needed by SOFT_PARTICLES logic here
-float GetLinearDepth(float depth)
+#ifdef SOFT_PARTICLES
+float GetLinearDepth(float depth) 
 {
    return (2.0 * near) / (far + near - depth * (far - near));
 }
@@ -253,14 +245,11 @@ void main()
     #endif
 
 	#ifdef SOFT_PARTICLES
-	// This logic assumes gl_Position is in clip space.
-	// It converts Z to linear, applies an offset, then converts back to a Z suitable for depth buffer.
-	// Requires 'near' and 'far' uniforms to be available in VSH if SOFT_PARTICLES is on.
-	gl_Position.z = GetLinearDepth(gl_Position.z / gl_Position.w) * (far - near); // Convert to linear view depth (0 to far-near)
-	gl_Position.z -= 0.25; // Apply offset
-	gl_Position.z = GetLogarithmicDepth(gl_Position.z / (far - near)) * gl_Position.w; // Convert back to clip-space like Z
+	gl_Position.z = GetLinearDepth(gl_Position.z / gl_Position.w) * (far - near);
+	gl_Position.z -= 0.25;
+	gl_Position.z = GetLogarithmicDepth(gl_Position.z / (far - near)) * gl_Position.w;
 	#endif
-
+	
 	#if AA == 2
 	gl_Position.xy = TAAJitter(gl_Position.xy, gl_Position.w, cameraPosition, previousCameraPosition);
 	#endif

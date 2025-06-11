@@ -137,11 +137,6 @@ value.REFLECTION_RAIN_TYPE.1=Full
 option.REFLECTION_ROUGH=Rough Reflection
 option.REFLECTION_ROUGH.comment=Allows surfaces with lower smoothness to render blurry reflections. §c[-]§r May contain minor artifacts.
 
-option.REFLECTION_ENGINE_V2=Reflection Engine 2.0
-option.REFLECTION_ENGINE_V2.comment=Enables advanced ray-traced screen space reflections for improved visual quality and accuracy. May impact performance.
-value.REFLECTION_ENGINE_V2.0=§cOff
-value.REFLECTION_ENGINE_V2.1=§aOn
-
 option.REFLECTION_PREVIOUS=Previous Frame Reflection
 option.REFLECTION_PREVIOUS.comment=Allows translucents to be reflected by using previous frame information. §c[-]§r May cause missing reflection on screenshot (caused by screenshot size setting). §c[-]§r Incompatible with some GPUs.
 
@@ -530,7 +525,7 @@ option.GERSTNER_WAVE_DIR_SPREAD=Directional Spread
 option.GERSTNER_WAVE_DIR_SPREAD.comment=Changes the directional spread of the gerstner waves.
 
 option.GERSTNER_WAVE_ITERATIONS=Gerstner Wave Iterations
-option.GERSTNER_WAVE_ITERATIONS.comment=Changes the number of iterations of the gerstner waves.
+option.GERSTNER_WAVE_ITERATIONS.comment=Changes the number of iterations of the gerstner waves. 
 
 option.NOISE_WAVE_SCALE=Noise Wave Scale
 option.NOISE_WAVE_SCALE.comment=Changes the scale of the noise layers.

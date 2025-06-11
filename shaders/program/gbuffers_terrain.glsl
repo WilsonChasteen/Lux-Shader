@@ -1,10 +1,10 @@
-/*
+/* 
 ----------------------------------------------------------------
 Lux Shader by https://github.com/TechDevOnGithub/
-Based on BSL Shaders v7.1.05 by Capt Tatsu https://bitslablab.com
+Based on BSL Shaders v7.1.05 by Capt Tatsu https://bitslablab.com 
 See AGREEMENT.txt for more information.
 ----------------------------------------------------------------
-*/
+*/ 
 
 // Global Include
 #include "/lib/global.glsl"
@@ -46,7 +46,7 @@ uniform int heldBlockLightValue2;
 uniform float frameTimeCounter;
 uniform float nightVision;
 uniform float rainStrength;
-uniform float screenBrightness;
+uniform float screenBrightness; 
 uniform float shadowFade;
 uniform float timeAngle, timeBrightness;
 uniform float viewWidth, viewHeight;
@@ -59,7 +59,6 @@ uniform mat4 shadowProjection;
 uniform mat4 shadowModelView;
 
 uniform sampler2D texture;
-uniform sampler2D depthtex0; // Added missing uniform
 
 #ifdef MATERIAL_SUPPORT
 uniform sampler2D specular;
@@ -139,7 +138,7 @@ void main()
 	vec2 newCoord = vTexCoord.st * vTexCoordAM.pq + vTexCoordAM.st;
 	float parallaxFade = Saturate((dist - PARALLAX_DISTANCE) / 32.0);
 	float skipAdvMat = float(mat > 2.98 && mat < 3.02);
-
+	
 	#ifdef PARALLAX
 	if(skipAdvMat < 0.5)
 	{
@@ -155,7 +154,7 @@ void main()
 	if (albedo.a > 0.001)
 	{
 		vec2 lightmap = Saturate(lmCoord);
-
+		
 		float foliage  = float(mat > 0.98 && mat < 1.02);
 		float emissiveIntensity = 0.5 * EMISSIVE_BRIGHTNESS;
 		float emissive = float(mat > 1.98 && mat < 2.02) * emissiveIntensity;
@@ -194,7 +193,7 @@ void main()
 		float metalness = 0.0, f0 = 0.0, ao = 1.0;
 		vec3 normalMap = vec3(0.0, 0.0, 1.0);
 		GetMaterials(smoothness, metalness, f0, metalData, emissive, ao, normalMap, newCoord, dcdx, dcdy);
-
+		
 		mat3 tbnMatrix = mat3(
 			tangent.x, binormal.x, normal.x,
 			tangent.y, binormal.y, normal.y,
@@ -238,7 +237,7 @@ void main()
 		#ifdef END
 		doParallax = float(NdotL > 0.0);
 		#endif
-
+		
 		if (doParallax > 0.5 && skipAdvMat < 0.5)
 		{
 			parallaxShadow = GetParallaxShadow(parallaxFade, newCoord, lightVec, tbnMatrix);
@@ -274,12 +273,12 @@ void main()
 		#else
 		puddles = NdotU * wetness;
 		#endif
-
+		
 		#ifdef WEATHER_PERBIOME
 		float weatherweight = isCold + isDesert + isMesa + isSavanna;
 		puddles *= 1.0 - weatherweight;
 		#endif
-
+		
 		puddles *= Saturate(lightmap.y * 32.0 - 31.0);
 		smoothness = mix(smoothness, 1.0, puddles);
 		f0 = max(f0, puddles * 0.02);
@@ -302,17 +301,17 @@ void main()
 
 		#if defined OVERWORLD || defined END
 		#ifdef OVERWORLD
-		vec3 specularColor = lightCol;
+		vec3 specularColor = lightCol;		
 		#endif
 
 		#ifdef END
 		vec3 specularColor = endCol.rgb;
 		#endif
-
+		
 		if (!isBackface)
 			albedo.rgb += GetSpecularHighlight(smoothness, metalness, f0, specularColor, rawAlbedo, shadow, newNormal, viewPos);
 		#endif
-
+		
 		#if defined REFLECTION_SPECULAR && defined REFLECTION_ROUGH
 		if (normalMap.x > -0.999 && normalMap.y > -0.999)
 		{
@@ -385,7 +384,10 @@ uniform float viewWidth, viewHeight;
 // Attributes
 attribute vec4 mc_Entity;
 attribute vec4 mc_midTexCoord;
+
+#ifdef MATERIAL_SUPPORT
 attribute vec4 at_tangent;
+#endif
 
 // Common Variables
 #ifdef WORLD_TIME_ANIMATION
@@ -419,13 +421,13 @@ void main()
 	#ifdef MATERIAL_SUPPORT
 	binormal = normalize(gl_NormalMatrix * cross(at_tangent.xyz, gl_Normal.xyz) * at_tangent.w);
 	tangent  = normalize(gl_NormalMatrix * at_tangent.xyz);
-
+	
 	mat3 tbnMatrix = mat3(
 		tangent.x, binormal.x, normal.x,
 		tangent.y, binormal.y, normal.y,
 		tangent.z, binormal.z, normal.z
 	);
-
+								  
 	viewVector = tbnMatrix * (gl_ModelViewMatrix * gl_Vertex).xyz;
 	dist = length(gl_ModelViewMatrix * gl_Vertex);
 
@@ -436,35 +438,35 @@ void main()
 	vTexCoordAM.st  = min(texCoord, midCoord - texMinMidCoord);
 	vTexCoord.xy    = sign(texMinMidCoord) * 0.5 + 0.5;
 	#endif
-
+	
 	mat = 0.0; recolor = 0.0;
 
-	if (mc_Entity.x == 10100 ||
-		mc_Entity.x == 10101 ||
-		mc_Entity.x == 10102 ||
+	if (mc_Entity.x == 10100 || 
+		mc_Entity.x == 10101 || 
+		mc_Entity.x == 10102 || 
 		mc_Entity.x == 10103 ||
-	    mc_Entity.x == 10104 ||
-		mc_Entity.x == 10105 ||
-		mc_Entity.x == 10106 ||
+	    mc_Entity.x == 10104 || 
+		mc_Entity.x == 10105 || 
+		mc_Entity.x == 10106 || 
 		mc_Entity.x == 10107 ||
-	    mc_Entity.x == 10108 ||
+	    mc_Entity.x == 10108 || 
 		mc_Entity.x == 10109 ||
-		mc_Entity.x == 10110)
+		mc_Entity.x == 10110) 
 	{
 		mat = 1.0;
 	}
-
+		
 	if (mc_Entity.x == 10200 ||
 		mc_Entity.x == 10207 ||
 		mc_Entity.x == 10210 ||
 		mc_Entity.x == 10214 ||
-		mc_Entity.x == 10215 ||
-		mc_Entity.x == 10216 ||
-		mc_Entity.x == 10226 ||
+		mc_Entity.x == 10215 || 
+		mc_Entity.x == 10216 || 
+		mc_Entity.x == 10226 || 
 		mc_Entity.x == 10231 ||
-		mc_Entity.x == 10249 ||
-		mc_Entity.x == 10250 ||
-		mc_Entity.x == 10251 ||
+		mc_Entity.x == 10249 || 
+		mc_Entity.x == 10250 || 
+		mc_Entity.x == 10251 || 
 		mc_Entity.x == 10252 ||
 		mc_Entity.x == 10253)
 	{
@@ -476,36 +478,36 @@ void main()
 		mat = 4.0;
 	}
 
-	if (mc_Entity.x == 10248)
+	if (mc_Entity.x == 10248) 
 	{
 		mat = 3.0;
 	}
 
-	if (mc_Entity.x == 10402)
+	if (mc_Entity.x == 10402) 
 	{
 		mat = 5.0;
 	}
 
 	if (mc_Entity.x == 10216 ||
 		mc_Entity.x == 10226 ||
-		mc_Entity.x == 10231 ||
+		mc_Entity.x == 10231 || 
 		mc_Entity.x == 10250 ||
-		mc_Entity.x == 10251 ||
+		mc_Entity.x == 10251 || 
 		mc_Entity.x == 10253 ||
-		mc_Entity.x == 10254)
+		mc_Entity.x == 10254) 
 	{
-		recolor = 1.0;
+		recolor = 1.0;	
 	}
 
 	if (mc_Entity.x == 10215 ||
-		mc_Entity.x == 10231 ||
-		mc_Entity.x == 10248 ||
+		mc_Entity.x == 10231 || 
+		mc_Entity.x == 10248 || 
 		mc_Entity.x == 10249 ||
 		mc_Entity.x == 10251)
 	{
 		lmCoord.x = 1.0;
 	}
-
+	
 	if (mc_Entity.x == 10245)
 	{
 		lmCoord.x -= 0.0667;
@@ -521,7 +523,8 @@ void main()
 	ang = (ang + (cos(ang * PI) * -0.5 + 0.5 - ang) / 3.0) * TAU;
 	sunVec = normalize((gbufferModelView * vec4(vec3(-sin(ang), cos(ang) * sunRotationData) * 2000.0, 1.0)).xyz);
 	upVec = normalize(gbufferModelView[1].xyz);
-    float sunVisibility = clamp(dot(sunVec, upVec) + 0.05, 0.0, 0.1) * 10.0; // Added line
+
+	float sunVisibility = clamp(dot(sunVec, upVec) + 0.05, 0.0, 0.1) * 10.0;
 
 	vec4 position = gbufferModelViewInverse * gl_ModelViewMatrix * gl_Vertex;
 	float istopv = gl_MultiTexCoord0.t < mc_midTexCoord.t ? 1.0 : 0.0;
@@ -532,7 +535,7 @@ void main()
     #endif
 
 	gl_Position = gl_ProjectionMatrix * gbufferModelView * position;
-
+	
 	#if AA == 2
 	gl_Position.xy = TAAJitter(gl_Position.xy, gl_Position.w, cameraPosition, previousCameraPosition);
 	#endif
