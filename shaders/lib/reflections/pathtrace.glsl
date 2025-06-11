@@ -6,7 +6,7 @@ See AGREEMENT.txt for more information.
 ----------------------------------------------------------------
 */
 
-#include "lib/settings.glsl" // Include shader settings
+#include "/lib/settings.glsl" // Include shader settings
 
 // Default settings for Path Tracing if not defined in settings.glsl
 #ifndef PATH_TRACE_MAX_BOUNCES
