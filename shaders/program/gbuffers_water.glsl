@@ -1,10 +1,10 @@
-/* 
+/*
 ----------------------------------------------------------------
 Lux Shader by https://github.com/TechDevOnGithub/
-Based on BSL Shaders v7.1.05 by Capt Tatsu https://bitslablab.com 
+Based on BSL Shaders v7.1.05 by Capt Tatsu https://bitslablab.com
 See AGREEMENT.txt for more information.
 ----------------------------------------------------------------
-*/ 
+*/
 
 // Global Include
 #include "/lib/global.glsl"
@@ -92,7 +92,7 @@ vec2 dcdy = dFdy(texCoord);
 vec3 lightVec = sunVec * ((timeAngle < 0.5325 || timeAngle > 0.9675) ? 1.0 : -1.0);
 
 // Common Functions
-float GetWaveLayer(vec2 coord, float wavelength, vec2 direction, float speed) 
+float GetWaveLayer(vec2 coord, float wavelength, vec2 direction, float speed)
 {
     float k = TAU / wavelength;
 	float x = k * dot(normalize(direction), coord.xy) - frameTimeCounter * 3.0 * speed;
@@ -118,7 +118,7 @@ float ComputeWaterWaves(
 {
 	float noise;
 
-	for (int i = 0; i < gWaveIterations; i++) 
+	for (int i = 0; i < gWaveIterations; i++)
 	{
 		vec2 direction = vec2(Hash11(float(i)), Hash11(-float(i))) * 2.0 - 1.0;
 		direction = mix(vec2(1.0), direction, gWaveDirSpread);
@@ -128,7 +128,7 @@ float ComputeWaterWaves(
 	}
 	noise *= gWaveAmplitude;
 
-	for (int i = 0; i < noiseIterations; i++) 
+	for (int i = 0; i < noiseIterations; i++)
 	{
 		float wind = frameTimeCounter * waveSpeed * 0.7 * (float(fract(i / 2.0) == 0.0) * 2.0 - 1.0);
 		noise += texture2D(noisetex, (planeCoord + wind) * noiseScale).r * noiseAmplitude;
@@ -206,14 +206,14 @@ vec3 GetParallaxWaves(vec3 worldPos, vec3 viewPos, vec3 viewVector)
 vec3 GetWaterNormal(vec3 worldPos, vec3 viewPos, vec3 viewVector)
 {
 	vec3 waterPos = worldPos + cameraPosition;
-	
+
     #ifdef WATER_PARALLAX
 	waterPos = GetParallaxWaves(waterPos, viewPos, viewVector);
 	#endif
 
     float h1 = GetWaterHeightMap(waterPos + vec3( 0.1, 0.0, 0.0), viewPos);
 	float h2 = GetWaterHeightMap(waterPos + vec3(-0.1, 0.0, 0.0), viewPos);
-	
+
     float h3 = GetWaterHeightMap(waterPos + vec3(0.0, 0.0,  0.1), viewPos);
 	float h4 = GetWaterHeightMap(waterPos + vec3(0.0, 0.0, -0.1), viewPos);
 
@@ -242,6 +242,7 @@ vec3 GetWaterNormal(vec3 worldPos, vec3 viewPos, vec3 viewVector)
 #include "/lib/lighting/forwardLighting.glsl"
 #include "/lib/atmospherics/borderFog.glsl"
 #include "/lib/reflections/simpleReflections.glsl"
+#include "/lib/reflections/reflectionEngineV2.glsl"
 #include "/lib/color/ambientColor.glsl"
 
 #ifdef OVERWORLD
@@ -291,7 +292,7 @@ void main()
 	if (albedo.a > 0.001)
 	{
 		vec2 lightmap = Saturate(lmCoord);
-		
+
 		float water       = float(mat > 0.98 && mat < 1.02);
 		float translucent = float(mat > 1.98 && mat < 2.02);
 
@@ -439,7 +440,7 @@ void main()
 		#ifdef OVERWORLD
 		vec3 specularColor = lightCol;
 		#endif
-		
+
 		#ifdef END
 		vec3 specularColor = endCol.rgb;
 		#endif
@@ -453,10 +454,17 @@ void main()
 			fresnel *= max(1.0 - isEyeInWater * 0.5 * water, 0.5);
 			fresnel *= 1.0 - translucent * 0.3;
 
-			#ifdef REFLECTION
-			reflection = SimpleReflection(viewPos, newNormal, dither, far, cameraPosition, previousCameraPosition);
-			reflection.rgb = pow(reflection.rgb * 2.0, vec3(8.0));
-			#endif
+            #ifdef REFLECTION
+                #if defined REFLECTION_ENGINE_V2 && REFLECTION_ENGINE_V2 == 1 // Check for the new engine first
+                    // For water, smoothness is typically high (close to 1.0)
+                    // We might need to pass a fixed high smoothness value or derive it if water can have variable smoothness.
+                    // Assuming water is perfectly smooth for ReflectionEngineV2 for now.
+                    reflection = ReflectionEngineV2(viewPos, newNormal, dither, 1.0);
+                #else // Fallback to existing simple reflections for water
+                    reflection = SimpleReflection(viewPos, newNormal, dither, far, cameraPosition, previousCameraPosition);
+                    reflection.rgb = pow(reflection.rgb * 2.0, vec3(8.0)); // Existing transformation
+                #endif
+            #endif
 
 			if (reflection.a < 1.0)
 			{

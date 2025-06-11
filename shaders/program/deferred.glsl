@@ -1,10 +1,10 @@
-/* 
+/*
 ----------------------------------------------------------------
 Lux Shader by https://github.com/TechDevOnGithub/
-Based on BSL Shaders v7.1.05 by Capt Tatsu https://bitslablab.com 
+Based on BSL Shaders v7.1.05 by Capt Tatsu https://bitslablab.com
 See AGREEMENT.txt for more information.
 ----------------------------------------------------------------
-*/ 
+*/
 
 // Settings
 #include "/lib/global.glsl"
@@ -71,7 +71,7 @@ float frametime = frameTimeCounter * ANIMATION_SPEED;
 // Common Functions
 float GetLinearDepth(float depth)
 {
-   	return (2.0 * near) / (far + near - depth * (far - near));
+	return (2.0 * near) / (far + near - depth * (far - near));
 }
 
 // Includes
@@ -103,6 +103,7 @@ float GetLinearDepth(float depth)
 #ifdef REFLECTION_ROUGH
 #include "/lib/reflections/roughReflections.glsl"
 #endif
+#include "/lib/reflections/reflectionEngineV2.glsl"
 
 #include "/lib/reflections/simpleReflections.glsl"
 
@@ -126,7 +127,7 @@ void main()
 	vec4 color = texture2D(colortex0, texCoord);
 
 	float dither = InterleavedGradientNoise(gl_FragCoord.xy);
-	
+
 	vec4 screenPos = vec4(texCoord, z, 1.0);
 	vec4 viewPos = gbufferProjectionInverse * (screenPos * 2.0 - 1.0);
 	viewPos /= viewPos.w;
@@ -171,32 +172,34 @@ void main()
 		{
 			vec4 reflection = vec4(0.0);
 			vec3 skyReflection = vec3(0.0);
-			
-			#ifdef REFLECTION_ROUGH
-			if (smoothness != 1.0)
-			{
-				reflection = RoughReflection(viewPos.xyz, normal, dither, smoothness);
-			}
-			else
-			{
-				reflection = SimpleReflection(viewPos.xyz, normal, dither, far, cameraPosition, previousCameraPosition);
-				reflection.rgb = pow(reflection.rgb * 2.0, vec3(8.0));
-			}
-			
-			#else
-			reflection = SimpleReflection(viewPos.xyz, normal, dither, far, cameraPosition, previousCameraPosition);
-			reflection.rgb = pow(reflection.rgb * 2.0, vec3(8.0));
-			#endif
+
+            #if defined REFLECTION_ENGINE_V2 && REFLECTION_ENGINE_V2 == 1 // Check for the new engine first
+                // Potentially add quality level checks for REFLECTION_ENGINE_V2 if it becomes more than on/off
+                reflection = ReflectionEngineV2(viewPos.xyz, normal, dither, smoothness);
+            #elif defined REFLECTION_ROUGH // Fallback to existing rough reflections
+                if (smoothness < 0.99) // Threshold for using rough vs simple can be tuned
+                {
+                    reflection = RoughReflection(viewPos.xyz, normal, dither, smoothness);
+                }
+                else
+                {
+                    reflection = SimpleReflection(viewPos.xyz, normal, dither, far, cameraPosition, previousCameraPosition);
+                    reflection.rgb = pow(reflection.rgb * 2.0, vec3(8.0)); // This pow might need to be consistent or handled inside ReflectionEngineV2
+                }
+            #else // Fallback to simple reflections if rough is off
+                reflection = SimpleReflection(viewPos.xyz, normal, dither, far, cameraPosition, previousCameraPosition);
+                reflection.rgb = pow(reflection.rgb * 2.0, vec3(8.0)); // This pow might need to be consistent or handled inside ReflectionEngineV2
+            #endif
 
 			if (reflection.a < 1.0)
 			{
 				#if defined OVERWORLD || defined END
 				vec3 skyRefPos = reflect(normalize(viewPos.xyz), normal);
 				#endif
-				
+
 				#ifdef OVERWORLD
 				skyReflection = GetSkyColor(skyRefPos, lightCol);
-				
+
 				#ifdef REFLECTION_ROUGH
 				float cloudMixRate = Smooth3(smoothness);
 				#else
@@ -226,7 +229,7 @@ void main()
 				#ifdef NETHER
 				skyReflection = netherCol.rgb * 0.04;
 				#endif
-				
+
 				#ifdef END
 				skyReflection = GetEndSkyColor(skyRefPos);
 				skyReflection += endCol.rgb * 0.01;	// End fog
