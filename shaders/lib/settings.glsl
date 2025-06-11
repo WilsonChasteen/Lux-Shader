@@ -1,10 +1,10 @@
-/* 
+/*
 ----------------------------------------------------------------
 Lux Shader by https://github.com/TechDevOnGithub/
-Based on BSL Shaders v7.1.05 by Capt Tatsu https://bitslablab.com 
+Based on BSL Shaders v7.1.05 by Capt Tatsu https://bitslablab.com
 See AGREEMENT.txt for more information.
 ----------------------------------------------------------------
-*/ 
+*/
 
 #define ABOUT 0                                                 // [0]
 
@@ -304,3 +304,20 @@ const float shadowMapBias = 1.0 - 25.6 / shadowDistance;
 #define AURORA_PROBABILITY 1.0                                  // [0.0 0.05 0.10 0.15 0.20 0.25 0.30 0.35 0.40 0.45 0.50 0.55 0.60 0.65 0.70 0.75 0.80 0.85 0.90 0.95 1.0]
 
 #define GLOWING_ORES
+
+// SSGI Settings
+#define SSGI_ENABLED 1       // 0 or 1
+#define SSGI_INTENSITY 1.0
+#define SSGI_SAMPLES 8       // Number of rays
+#define SSGI_RADIUS 0.7      // View-space radius for seeking samples
+#define SSGI_MAX_STEPS 5     // Max steps per ray
+
+// Voxel GI Settings
+#define VOXEL_GI_ENABLED 1
+#define VOXEL_GI_INTENSITY 1.0
+#define VOXEL_GRID_RESOLUTION_X 64 // Make them individual for more control if needed
+#define VOXEL_GRID_RESOLUTION_Y 64
+#define VOXEL_GRID_RESOLUTION_Z 64
+#define VOXEL_GRID_WORLD_SIZE 32.0f // The world space extent of the voxel grid (e.g., 32x32x32 blocks)
+#define VOXEL_TRACE_STEPS 8
+#define VOXEL_CONE_ANGLE 0.2f

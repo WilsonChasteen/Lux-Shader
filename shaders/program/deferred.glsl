@@ -1,10 +1,10 @@
-/* 
+/*
 ----------------------------------------------------------------
 Lux Shader by https://github.com/TechDevOnGithub/
-Based on BSL Shaders v7.1.05 by Capt Tatsu https://bitslablab.com 
+Based on BSL Shaders v7.1.05 by Capt Tatsu https://bitslablab.com
 See AGREEMENT.txt for more information.
 ----------------------------------------------------------------
-*/ 
+*/
 
 // Settings
 #include "/lib/global.glsl"
@@ -36,6 +36,11 @@ uniform mat4 gbufferModelView, gbufferPreviousModelView, gbufferModelViewInverse
 
 uniform sampler2D colortex0;
 uniform sampler2D depthtex0;
+
+#if VOXEL_GI_ENABLED == 1
+uniform sampler3D voxelEmissionTextureSampler;
+uniform vec3 voxelGridCenter; // This will need to be updated by the game (e.g., to camera position)
+#endif
 
 #if defined MATERIAL_SUPPORT && defined REFLECTION_SPECULAR
 uniform vec3 cameraPosition, previousCameraPosition;
@@ -71,7 +76,7 @@ float frametime = frameTimeCounter * ANIMATION_SPEED;
 // Common Functions
 float GetLinearDepth(float depth)
 {
-   	return (2.0 * near) / (far + near - depth * (far - near));
+	return (2.0 * near) / (far + near - depth * (far - near));
 }
 
 // Includes
@@ -85,6 +90,8 @@ float GetLinearDepth(float depth)
 #include "/lib/color/ambientColor.glsl"
 #include "/lib/atmospherics/borderFog.glsl"
 #include "/lib/util/spaceConversion.glsl"
+#include "/lib/lighting/ssgi.glsl"
+#include "/lib/lighting/voxel_gi.glsl"
 
 #if AA == 2
 #include "/lib/vertex/jitter.glsl"
@@ -126,7 +133,7 @@ void main()
 	vec4 color = texture2D(colortex0, texCoord);
 
 	float dither = InterleavedGradientNoise(gl_FragCoord.xy);
-	
+
 	vec4 screenPos = vec4(texCoord, z, 1.0);
 	vec4 viewPos = gbufferProjectionInverse * (screenPos * 2.0 - 1.0);
 	viewPos /= viewPos.w;
@@ -171,7 +178,7 @@ void main()
 		{
 			vec4 reflection = vec4(0.0);
 			vec3 skyReflection = vec3(0.0);
-			
+
 			#ifdef REFLECTION_ROUGH
 			if (smoothness != 1.0)
 			{
@@ -182,7 +189,7 @@ void main()
 				reflection = SimpleReflection(viewPos.xyz, normal, dither, far, cameraPosition, previousCameraPosition);
 				reflection.rgb = pow(reflection.rgb * 2.0, vec3(8.0));
 			}
-			
+
 			#else
 			reflection = SimpleReflection(viewPos.xyz, normal, dither, far, cameraPosition, previousCameraPosition);
 			reflection.rgb = pow(reflection.rgb * 2.0, vec3(8.0));
@@ -193,10 +200,10 @@ void main()
 				#if defined OVERWORLD || defined END
 				vec3 skyRefPos = reflect(normalize(viewPos.xyz), normal);
 				#endif
-				
+
 				#ifdef OVERWORLD
 				skyReflection = GetSkyColor(skyRefPos, lightCol);
-				
+
 				#ifdef REFLECTION_ROUGH
 				float cloudMixRate = Smooth3(smoothness);
 				#else
@@ -226,7 +233,7 @@ void main()
 				#ifdef NETHER
 				skyReflection = netherCol.rgb * 0.04;
 				#endif
-				
+
 				#ifdef END
 				skyReflection = GetEndSkyColor(skyRefPos);
 				skyReflection += endCol.rgb * 0.01;	// End fog
@@ -240,6 +247,39 @@ void main()
 
 		#ifdef AO
 		color.rgb *= AmbientOcclusion(depthtex0, dither);
+		#endif
+
+		#ifdef SSGI_ENABLED // Check if SSGI is globally enabled via shaders.properties -> settings.glsl
+		if (z < 1.0) { // Only apply to non-sky pixels
+			vec3 ssgiContribution = CalculateSSGI(
+				texCoord,
+				depthtex0,      // Depth sampler
+				colortex0,      // Albedo sampler
+				colortex6,      // Encoded normal sampler
+				gbufferProjectionInverse,
+				gbufferProjection,
+				vec2(1.0/viewWidth, 1.0/viewHeight) // pixelSize
+			);
+			color.rgb += ssgiContribution;
+		}
+		#endif
+
+		#if VOXEL_GI_ENABLED == 1
+		if (z < 1.0) { // Only for non-sky pixels
+			// Calculate voxelGridOrigin for use in CalculateVoxelGI
+			vec3 voxelGridOrigin = voxelGridCenter - VOXEL_GRID_WORLD_SIZE * 0.5;
+			vec3 vgResolution = vec3(VOXEL_GRID_RESOLUTION_X, VOXEL_GRID_RESOLUTION_Y, VOXEL_GRID_RESOLUTION_Z);
+
+			vec3 voxelGIContribution = CalculateVoxelGI(
+				ToWorld(viewPos.xyz), // Pass world position of current pixel
+				normal,               // Pass world normal of current pixel
+				voxelEmissionTextureSampler,
+				voxelGridOrigin,
+				VOXEL_GRID_WORLD_SIZE,
+				ivec3(vgResolution)
+			);
+			color.rgb += voxelGIContribution;
+		}
 		#endif
 
 		#ifdef FOG
