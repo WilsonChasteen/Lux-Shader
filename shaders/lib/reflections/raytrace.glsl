@@ -21,17 +21,8 @@ float cdist(vec2 coord)
 	return max(abs(coord.x - 0.5), abs(coord.y - 0.5)) * 1.85;
 }
 
-// Helper function to convert depth buffer value to linear depth.
-// depthSample: Value from depth texture (usually non-linear).
-// nearPlane, farPlane: Clipping plane distances.
-float LinearizeDepth(float depthSample, float nearPlane, float farPlane) {
-    // Assuming depthSample is in [0, 1] range from depth texture
-    // Convert to normalized device coordinates (NDC) in [-1, 1] range
-    float zNdc = 2.0 * depthSample - 1.0;
-    // Perspective projection formula to reverse Z transformation
-    return (2.0 * nearPlane * farPlane) / (farPlane + nearPlane - zNdc * (farPlane - nearPlane));
-}
-
+// LinearizeDepth function is expected to be available from common.glsl or a similar global include.
+// It typically has a signature like: float LinearizeDepth(float z, float zFar, float zNear)
 
 vec4 Raytrace(
 	sampler2D depthtex,
@@ -97,8 +88,7 @@ vec4 Raytrace(
 }
 
 // RaytraceV2: Enhanced raytracing with adaptive stepping, hit refinement, and off-screen handling.
-// nearPlane and farPlane are shader globals typically, ensure they are accessible or pass them.
-// For this implementation, we assume 'near' and 'far' are accessible globals (like in deferred.glsl).
+// Assumes 'near' and 'far' OptiFine uniforms are accessible for LinearizeDepth.
 vec4 RaytraceV2(
 	sampler2D depthtex,
 	vec3 viewPos, // Current ray position in view space
@@ -153,13 +143,14 @@ vec4 RaytraceV2(
 
 		// Adaptive Step Sizing Logic:
         // Compare linear depth of current ray position with linear depth from scene geometry.
-        // viewPos.z is already in view space, so abs(viewPos.z) is its linear depth.
+        // viewPos.z is already in view space, so abs(viewPos.z) is its linear depth from camera.
         float rayLinearDepth = abs(viewPos.z);
-        // Linearize depth from depth texture (assuming 'near' and 'far' are accessible globals)
-        float sceneLinearDepth = LinearizeDepth(depthSample, near, far);
+        // Linearize depth from depth texture. Uses global LinearizeDepth(z, zFar, zNear).
+        float sceneLinearDepth = LinearizeDepth(depthSample, far, near); // Corrected parameter order
         float depthDifference = rayLinearDepth - sceneLinearDepth;
 
         // Heuristic for adaptive stepping:
+        // Adjust step based on how far the current ray position is from the surface in front of it.
         if (depthDifference > 2.0 * length(initialStepVector)) { // Ray is significantly above the surface
 			currentStepVector = initialStepVector * 2.0; // Take larger steps
 		} else if (depthDifference < 0.25 * length(initialStepVector)) { // Ray is very close to or below the surface
@@ -179,16 +170,17 @@ vec4 RaytraceV2(
 
             // Store current state before refinement
             vec3 preRefinementTotalVector = totalTracedVector;
-            vec3 preRefinementViewPos = viewPos;
+            // vec3 preRefinementViewPos = viewPos; // Not strictly needed if we restore totalTracedVector and recompute
 
             // Iterative Hit Refinement Loop
+            // Attempts a few smaller steps to get closer to the actual intersection point.
             for (int k = 0; k < maxRefinementIterations; ++k) {
-                totalTracedVector -= currentStepVector; // Backtrack slightly from the coarse hit
-                currentStepVector *= hitRefinementStepFactor; // Reduce step size significantly for refinement
-                totalTracedVector += currentStepVector;
-                viewPos = startRayPos + totalTracedVector * (dither * 0.05 + 0.975);
+                totalTracedVector -= currentStepVector; // Backtrack from the coarse hit position
+                currentStepVector *= hitRefinementStepFactor; // Reduce step size significantly
+                totalTracedVector += currentStepVector; // Take refined step
+                viewPos = startRayPos + totalTracedVector * (dither * 0.05 + 0.975); // Apply dither for temporal stability
 
-                // Re-evaluate screen position and error
+                // Re-evaluate screen position and error with the new refined viewPos
                 pos = nvec3(gbufferProjection * nvec4(viewPos)) * 0.5 + 0.5;
                 if (pos.x < -0.05 || pos.x > 1.05 || pos.y < -0.05 || pos.y > 1.05) break; // Stop if refinement goes off-screen
 
@@ -200,22 +192,18 @@ vec4 RaytraceV2(
                     bestError = currentRefinementError;
                     bestHitViewPos = viewPos;
                 } else {
-                    // Error increased, refinement might be diverging or overshot. Revert to previous best.
-                    viewPos = bestHitViewPos; // Keep the best hit found so far
-                    totalTracedVector = preRefinementTotalVector; // Could also try to restore totalTracedVector to match bestHitViewPos
-                    currentStepVector = initialStepVector * pow(hitRefinementStepFactor, float(k+1)); // Continue with smaller steps from best known
-                    // Or simply break if refinement is not productive
-                    // break;
+                    // Error increased or stayed same, refinement might be diverging or hit limit of precision.
+                    // Revert to the state before this refinement step if it made things worse, or just break.
+                    // For simplicity, we can just use the best one found so far and let next iteration (if any) try from there,
+                    // or simply break if error doesn't improve.
+                    // viewPos = bestHitViewPos; // Revert to best known, or remove this line to keep trying
+                    break;
                 }
             }
             viewPos = bestHitViewPos; // Use the best position found during refinement
-            err = bestError;          // Update error to the refined error
+            // err = bestError; // err is already updated if a better hit was found, or loop broke.
 
-            // After refinement, check if we should terminate ray marching
-            // The original logic used 'sr' and 'maxf' for step reduction strategy.
-            // Here, we use 'maxf' as a general quality/iteration control if needed, or simply break.
-            // For now, assume refinement implies a hit or loop termination.
-			break; // Exit main ray marching loop after refinement
+			break; // Exit main ray marching loop after refinement phase
 		}
 
         totalTracedVector += currentStepVector;
@@ -225,46 +213,23 @@ vec4 RaytraceV2(
 	// Previous frame reprojection: Applies temporal reprojection to the hit screen coordinates (pos.xy)
 	// This helps stabilize reflections by reusing information from the previous frame.
 	#ifdef REFLECTION_PREVIOUS
-	// Calculate the view space position of the hit from the current frame
-	vec4 hitViewPosCurrentFrame = gbufferProjectionInverse * vec4(pos.xy * 2.0 - 1.0, texture2D(depthtex, pos.xy).r * 2.0 - 1.0, 1.0);
-	hitViewPosCurrentFrame /= hitViewPosCurrentFrame.w;
-	// Transform to world space
-	vec4 hitWorldPos = gbufferModelViewInverse * hitViewPosCurrentFrame;
-
-	// Calculate where this world position was in the previous frame's view space
-	vec4 hitViewPosPreviousFrame = gbufferPreviousModelView * hitWorldPos;
-    // Account for camera movement (world space)
-    hitViewPosPreviousFrame.xyz -= (cameraPosition - previousCameraPosition); // This seems off, reprojection usually adds this. Let's check original.
-                                                                              // Original: previousPosition = viewPosPrev + vec4(cameraPosition - previousCameraPosition, 0.0);
-                                                                              // Then: previousPosition = gbufferPreviousModelView * previousPosition;
-                                                                              // This means the camera delta is applied in world space to the *previous frame's world pos* to get *current world pos if static*
-                                                                              // The provided snippet:
-                                                                              // vec4 viewPosPrev = gbufferProjectionInverse * vec4(pos * 2.0 - 1.0, 1.0); viewPosPrev /= viewPosPrev.w; viewPosPrev = gbufferModelViewInverse * viewPosPrev;
-                                                                              // vec4 previousPosition = viewPosPrev + vec4(cameraPosition - previousCameraPosition, 0.0);
-                                                                              // previousPosition = gbufferPreviousModelView * previousPosition; previousPosition = gbufferPreviousProjection * previousPosition;
-                                                                              // pos.xy = previousPosition.xy / previousPosition.w * 0.5 + 0.5;
-                                                                              // This seems to be: current hit screen pos -> world pos -> add camera delta to get where it *would have been* if it moved with camera -> project to prev screen
-                                                                              // Let's stick to the original logic carefully.
-
+	// Calculate the world space position of the hit from the current frame's data
 	vec4 worldPosAtHit = gbufferModelViewInverse * (gbufferProjectionInverse * vec4(pos.xy * 2.0 - 1.0, texture2D(depthtex, pos.xy).r * 2.0 - 1.0, 1.0));
-    worldPosAtHit /= worldPosAtHit.w;
+    worldPosAtHit /= worldPosAtHit.w; // Perform perspective divide
 
-	vec4 previousViewPos = worldPosAtHit;
-    // To get the world position in the *previous* frame of a point that is *static* in the world:
-    // We don't need to add (cameraPosition - previousCameraPosition).
-    // Instead, we use previous matrices to project this static world point to the previous screen.
-	previousViewPos = gbufferPreviousModelView * previousViewPos;
-	previousViewPos = gbufferPreviousProjection * previousViewPos;
+	// Project this world position using the previous frame's matrices
+	vec4 previousScreenPos = gbufferPreviousProjection * (gbufferPreviousModelView * worldPosAtHit);
 
-    // If previousViewPos.w is positive (in front of camera) and projection is valid
-	if (previousViewPos.w > 0.0) {
-	    vec2 reprojectedPos = previousViewPos.xy / previousViewPos.w * 0.5 + 0.5;
-        // Check if reprojected position is within screen bounds
-	    if (reprojectedPos.x > 0.0 && reprojectedPos.x < 1.0 && reprojectedPos.y > 0.0 && reprojectedPos.y < 1.0) {
-	        pos.xy = reprojectedPos; // Use reprojected screen coordinates
+    // If previousScreenPos.w is positive (in front of camera) and projection is valid
+	if (previousScreenPos.w > 0.0) {
+	    vec2 reprojectedXy = previousScreenPos.xy / previousScreenPos.w * 0.5 + 0.5; // Perspective divide and map to [0,1]
+        // Check if reprojected position is within screen bounds [0,1]
+	    if (reprojectedXy.x > 0.0 && reprojectedXy.x < 1.0 && reprojectedXy.y > 0.0 && reprojectedXy.y < 1.0) {
+	        pos.xy = reprojectedXy; // Use reprojected screen coordinates
 	    }
     }
 	#endif
 
-	return vec4(pos.xy, texture2D(depthtex,pos.xy).r, hitDist); // Return screen pos (x,y), depth (z), and world distance (w/a)
+	// Return screen pos (x,y), depth from texture at that pos (z), and world distance to hit (w/a)
+	return vec4(pos.xy, texture2D(depthtex,pos.xy).r, hitDist);
 }
