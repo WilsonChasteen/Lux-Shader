@@ -1,10 +1,10 @@
-/* 
+/*
 ----------------------------------------------------------------
 Lux Shader by https://github.com/TechDevOnGithub/
-Based on BSL Shaders v7.1.05 by Capt Tatsu https://bitslablab.com 
+Based on BSL Shaders v7.1.05 by Capt Tatsu https://bitslablab.com
 See AGREEMENT.txt for more information.
 ----------------------------------------------------------------
-*/ 
+*/
 
 // Settings
 #include "/lib/global.glsl"
@@ -71,7 +71,7 @@ float frametime = frameTimeCounter * ANIMATION_SPEED;
 // Common Functions
 float GetLinearDepth(float depth)
 {
-   	return (2.0 * near) / (far + near - depth * (far - near));
+	return (2.0 * near) / (far + near - depth * (far - near));
 }
 
 // Includes
@@ -95,28 +95,34 @@ float GetLinearDepth(float depth)
 #endif
 
 #if defined MATERIAL_SUPPORT && defined REFLECTION_SPECULAR
-#include "/lib/util/encode.glsl"
-#include "/lib/reflections/raytrace.glsl"
-#include "/lib/reflections/complexFresnel.glsl"
-#include "/lib/surface/materialDeferred.glsl"
+    #include "/lib/util/encode.glsl"        // Likely always needed for material data
+    #include "/lib/surface/materialDeferred.glsl" // Needed for GetMaterials
+    #include "/lib/reflections/complexFresnel.glsl" // Needed for fresnel calculation
 
-#ifdef REFLECTION_ROUGH
-#include "/lib/reflections/roughReflections.glsl"
-#endif
+    #ifdef PATHFINDER_REFLECTIONS
+        #include "/lib/reflections/pathfinder.glsl" // Our new engine
+        // Pathfinder will eventually need sky/cloud/aurora includes too for missed rays
+        // For now, let's keep these includes outside the #else, so both branches can use them.
+    #else
+        #include "/lib/reflections/raytrace.glsl"
+        #ifdef REFLECTION_ROUGH
+            #include "/lib/reflections/roughReflections.glsl"
+        #endif
+        #include "/lib/reflections/simpleReflections.glsl"
+    #endif
 
-#include "/lib/reflections/simpleReflections.glsl"
+    // These are likely needed for both reflection methods if they reflect the sky
+    #ifdef OVERWORLD
+    #include "/lib/atmospherics/clouds.glsl"
+    #ifdef AURORA
+    #include "/lib/atmospherics/aurora.glsl"
+    #endif
+    #endif
+    // End sky include also needed for both
+    #ifdef END
+    #include "/lib/atmospherics/endSky.glsl"
+    #endif
 
-#ifdef OVERWORLD
-#include "/lib/atmospherics/clouds.glsl"
-
-#ifdef AURORA
-#include "/lib/atmospherics/aurora.glsl"
-#endif
-#endif
-#endif
-
-#ifdef END
-#include "/lib/atmospherics/endSky.glsl"
 #endif
 
 // Program
@@ -126,7 +132,7 @@ void main()
 	vec4 color = texture2D(colortex0, texCoord);
 
 	float dither = InterleavedGradientNoise(gl_FragCoord.xy);
-	
+
 	vec4 screenPos = vec4(texCoord, z, 1.0);
 	vec4 viewPos = gbufferProjectionInverse * (screenPos * 2.0 - 1.0);
 	viewPos /= viewPos.w;
@@ -169,35 +175,43 @@ void main()
 		if (GetLuminance(fresnel3) > 1e-3)
 		#endif
 		{
-			vec4 reflection = vec4(0.0);
-			vec3 skyReflection = vec3(0.0);
-			
-			#ifdef REFLECTION_ROUGH
-			if (smoothness != 1.0)
-			{
-				reflection = RoughReflection(viewPos.xyz, normal, dither, smoothness);
-			}
-			else
-			{
-				reflection = SimpleReflection(viewPos.xyz, normal, dither, far, cameraPosition, previousCameraPosition);
-				reflection.rgb = pow(reflection.rgb * 2.0, vec3(8.0));
-			}
-			
-			#else
-			reflection = SimpleReflection(viewPos.xyz, normal, dither, far, cameraPosition, previousCameraPosition);
-			reflection.rgb = pow(reflection.rgb * 2.0, vec3(8.0));
-			#endif
+			vec4 reflectionResult = vec4(0.0); // Renamed to avoid conflict if 'reflection' is used for sky
+			vec3 skyReflectionColor = vec3(0.0); // For skybox/environment reflection
 
-			if (reflection.a < 1.0)
+            #ifdef PATHFINDER_REFLECTIONS
+                // rawAlbedo is available from GetMaterials() call earlier in deferred.glsl
+                reflectionResult = CalculatePathfinderReflection(viewPos.xyz, normal, dither, smoothness, metalness, rawAlbedo, f0, cameraPosition, previousCameraPosition, far);
+                // Pathfinder currently returns color in .rgb and hit_alpha in .a
+                // Sky reflection for missed rays needs to be handled inside Pathfinder or added here.
+                // For now, if Pathfinder returns alpha < 1.0, we might assume it missed and needs sky.
+            #else
+                // --- Original BSL/Lux reflection logic ---
+                #ifdef REFLECTION_ROUGH
+                if (smoothness != 1.0) {
+                    reflectionResult = RoughReflection(viewPos.xyz, normal, dither, smoothness);
+                } else {
+                    reflectionResult = SimpleReflection(viewPos.xyz, normal, dither, far, cameraPosition, previousCameraPosition);
+                    reflectionResult.rgb = pow(reflectionResult.rgb * 2.0, vec3(8.0));
+                }
+                #else
+                reflectionResult = SimpleReflection(viewPos.xyz, normal, dither, far, cameraPosition, previousCameraPosition);
+                reflectionResult.rgb = pow(reflectionResult.rgb * 2.0, vec3(8.0));
+                #endif
+                // --- End of Original BSL/Lux reflection logic ---
+            #endif
+
+            // Common sky reflection mixing logic (can be adapted)
+            // This block calculates 'skyReflectionColor'
+			if (reflectionResult.a < 0.999) // If primary reflection didn't fully cover (or missed for Pathfinder)
 			{
 				#if defined OVERWORLD || defined END
 				vec3 skyRefPos = reflect(normalize(viewPos.xyz), normal);
 				#endif
-				
+
 				#ifdef OVERWORLD
-				skyReflection = GetSkyColor(skyRefPos, lightCol);
-				
-				#ifdef REFLECTION_ROUGH
+				skyReflectionColor = GetSkyColor(skyRefPos, lightCol);
+
+				#ifdef REFLECTION_ROUGH // This might need adjustment for Pathfinder if it has its own roughness consideration for sky
 				float cloudMixRate = Smooth3(smoothness);
 				#else
 				float cloudMixRate = 1.0;
@@ -205,36 +219,39 @@ void main()
 
 				#ifdef CLOUDS
 				vec4 cloud = DrawCloud(skyRefPos * 100.0, dither, lightCol, skyEnvAmbientApprox);
-				skyReflection = mix(skyReflection, cloud.rgb, cloud.a * cloudMixRate);
+				skyReflectionColor = mix(skyReflectionColor, cloud.rgb, cloud.a * cloudMixRate);
 				#endif
 
 				#ifdef AURORA
 				vec4 aurora = DrawAurora(skyRefPos * 100.0, dither, AURORA_SAMPLES_REFLECTION);
-				skyReflection = mix(skyReflection, aurora.rgb, aurora.a);
+				skyReflectionColor = mix(skyReflectionColor, aurora.rgb, aurora.a);
 				#endif
 
 				float quarterNdotU = clamp(0.25 * dot(normal, upVec) + 0.75, 0.5, 1.0);
 				quarterNdotU *= quarterNdotU;
 
-				skyReflection = mix(
-					quarterNdotU * vec3(0.001),
-					skyReflection * (4.0 - 3.0 * eBS),
-					skymapMod
+				skyReflectionColor = mix(
+					quarterNdotU * vec3(0.001), // Base ambient for up-facing normals if skymapMod is low
+					skyReflectionColor * (4.0 - 3.0 * eBS), // Modulated sky color
+					skymapMod // How much the material itself reflects the sky
 				);
-				#endif
+				#endif // OVERWORLD
 
 				#ifdef NETHER
-				skyReflection = netherCol.rgb * 0.04;
+				skyReflectionColor = netherCol.rgb * 0.04;
 				#endif
-				
+
 				#ifdef END
-				skyReflection = GetEndSkyColor(skyRefPos);
-				skyReflection += endCol.rgb * 0.01;	// End fog
+				skyReflectionColor = GetEndSkyColor(skyRefPos);
+				skyReflectionColor += endCol.rgb * 0.01;	// End fog
 				#endif
 			}
 
-			reflection.rgb = max(mix(skyReflection, reflection.rgb, reflection.a), vec3(0.0));
-			color.rgb = color.rgb * (1.0 - fresnel3 * (1.0 - metalness)) + reflection.rgb * fresnel3;
+            // Combine traced reflection with sky reflection
+            // reflectionResult.rgb contains the color from Raytrace/Pathfinder hit
+            // reflectionResult.a contains the hit factor (how much it hit something vs. missed)
+			vec3 finalReflectionColor = max(mix(skyReflectionColor, reflectionResult.rgb, reflectionResult.a), vec3(0.0));
+			color.rgb = color.rgb * (1.0 - fresnel3 * (1.0 - metalness)) + finalReflectionColor * fresnel3;
 		}
 		#endif
 
