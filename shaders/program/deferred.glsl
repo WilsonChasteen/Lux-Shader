@@ -103,7 +103,7 @@ float GetLinearDepth(float depth)
 #ifdef REFLECTION_ROUGH
 #include "/lib/reflections/roughReflections.glsl"
 #endif
-#include "/lib/reflections/reflectionEngineV2.glsl" // Restored include
+#include "/lib/reflections/reflectionEngineV2.glsl"
 
 #include "/lib/reflections/simpleReflections.glsl"
 
