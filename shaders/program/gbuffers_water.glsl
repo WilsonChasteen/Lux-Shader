@@ -56,6 +56,7 @@ uniform mat4 shadowModelView;
 
 uniform sampler2D texture;
 uniform sampler2D gaux2;
+uniform sampler2D depthtex0;
 uniform sampler2D depthtex1;
 uniform sampler2D noisetex;
 
