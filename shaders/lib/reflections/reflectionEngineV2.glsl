@@ -6,6 +6,8 @@ See AGREEMENT.txt for more information.
 ----------------------------------------------------------------
 */
 
+uniform sampler2D colortex5;
+
 // Adapted from "Sampling Visible GGX Normals with Spherical Caps"
 // https://arxiv.org/abs/2306.05044
 vec3 SampleVNDF_Hemisphere(vec3 wi, vec2 hash)
@@ -67,7 +69,7 @@ vec4 ReflectionEngineV2(vec3 viewPos, vec3 normal, float dither, float smoothnes
 			if (texture2D(depthtex0, pos.xy).r == 1.0)
 				continue;
 			else
-				color += texture2DLod(colortex0, pos.xy, lod);
+				color += texture2DLod(colortex5, pos.xy, lod);
 		}
 	}
 
