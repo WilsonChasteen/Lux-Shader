@@ -29,10 +29,8 @@ vec4 Raytrace(
 	float maxf, 
 	float stp, 
 	float ref, 
-	float inc,
-	float maxRayDist, // New parameter for max ray distance
-	sampler2D gbufferMaterial, // Sampler for material properties (e.g., roughness)
-	vec2 fragScreenUV // Screen UV of the fragment being shaded (for roughness lookup & random seed)
+	float inc
+	// Removed: float maxRayDist, sampler2D gbufferMaterial, vec2 fragScreenUV
 	)
 {
 	// The fourth component of the return value ('result.w') will be used as a status:
@@ -42,9 +40,7 @@ vec4 Raytrace(
 	vec4 result = vec4(0.0, 0.0, 0.0, -2.0); // Default to miss
 	int hitType = 0; // 0 = miss, 1 = surface, 2 = sky.
 
-	// Sample roughness of the reflecting surface. Assuming roughness is in .g channel.
-	// fragScreenUV is the screen coordinate of the original surface point casting the reflection.
-	float roughness = texture2D(gbufferMaterial, fragScreenUV).g;
+	// float roughness = texture2D(gbufferMaterial, fragScreenUV).g; // Removed
 
 	vec3 pos = vec3(0.0);
 	float dist = 0.0;
@@ -98,26 +94,26 @@ vec4 Raytrace(
         tvector += vector;
 		viewPos = start + tvector * (dither * 0.05 + 0.975);
 
-        // Perturb ray position for glossy reflections if roughness is significant
-        if (roughness > 0.01) {
-            // Generate a pseudo-random 3D offset
-            // Seed incorporates screen position (fragScreenUV), frame variation (dither), and ray step (i)
-            vec2 seed = fragScreenUV.xy + vec2(float(i) * 0.13, dither * 0.07);
+        // Perturb ray position for glossy reflections if roughness is significant // Removed
+        // if (roughness > 0.01) {
+        //     // Generate a pseudo-random 3D offset
+        //     // Seed incorporates screen position (fragScreenUV), frame variation (dither), and ray step (i)
+        //     vec2 seed = fragScreenUV.xy + vec2(float(i) * 0.13, dither * 0.07);
+        //
+        //     float rdx = fract(sin(dot(seed, vec2(12.9898, 78.233))) * 43758.5453);
+        //     float rdy = fract(sin(dot(seed + rdx, vec2(34.324, 67.897))) * 3758.5453);
+        //     float rdz = fract(sin(dot(seed - rdy, vec2(56.123, 90.456))) * 63758.5453);
+        //
+        //     vec3 randomOffset = normalize(vec3(rdx * 2.0 - 1.0, rdy * 2.0 - 1.0, rdz * 2.0 - 1.0));
+        //
+        //     // Scale perturbation by roughness and current step length (vector)
+        //     // The factor 0.1 is arbitrary to keep perturbations relatively small.
+        //     float perturbationStrength = roughness * length(vector) * 0.1;
+        //     viewPos += randomOffset * perturbationStrength;
+        // }
 
-            float rdx = fract(sin(dot(seed, vec2(12.9898, 78.233))) * 43758.5453);
-            float rdy = fract(sin(dot(seed + rdx, vec2(34.324, 67.897))) * 3758.5453);
-            float rdz = fract(sin(dot(seed - rdy, vec2(56.123, 90.456))) * 63758.5453);
-
-            vec3 randomOffset = normalize(vec3(rdx * 2.0 - 1.0, rdy * 2.0 - 1.0, rdz * 2.0 - 1.0));
-
-            // Scale perturbation by roughness and current step length (vector)
-            // The factor 0.1 is arbitrary to keep perturbations relatively small.
-            float perturbationStrength = roughness * length(vector) * 0.1;
-            viewPos += randomOffset * perturbationStrength;
-        }
-
-		// Early exit if ray travels too far
-		if (length(tvector) > maxRayDist) break;
+		// Early exit if ray travels too far // Removed
+		// if (length(tvector) > maxRayDist) break;
     }
 
 	// Previous frame reprojection from Chocapic13
