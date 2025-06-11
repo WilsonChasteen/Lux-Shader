@@ -103,7 +103,7 @@ float GetLinearDepth(float depth)
 #ifdef REFLECTION_ROUGH
 #include "/lib/reflections/roughReflections.glsl"
 #endif
-#include "/lib/reflections/reflectionEngineV2.glsl"
+// #include "/lib/reflections/reflectionEngineV2.glsl" // Reverted: Commented out
 
 #include "/lib/reflections/simpleReflections.glsl"
 
@@ -173,10 +173,8 @@ void main()
 			vec4 reflection = vec4(0.0);
 			vec3 skyReflection = vec3(0.0);
 
-            #if defined REFLECTION_ENGINE_V2 && REFLECTION_ENGINE_V2 == 1 // Check for the new engine first
-                // Potentially add quality level checks for REFLECTION_ENGINE_V2 if it becomes more than on/off
-                reflection = ReflectionEngineV2(viewPos.xyz, normal, dither, smoothness);
-            #elif defined REFLECTION_ROUGH // Fallback to existing rough reflections
+            // Reverted reflection logic
+            #if defined REFLECTION_ROUGH
                 if (smoothness < 0.99) // Threshold for using rough vs simple can be tuned
                 {
                     reflection = RoughReflection(viewPos.xyz, normal, dither, smoothness);
@@ -184,11 +182,11 @@ void main()
                 else
                 {
                     reflection = SimpleReflection(viewPos.xyz, normal, dither, far, cameraPosition, previousCameraPosition);
-                    reflection.rgb = pow(reflection.rgb * 2.0, vec3(8.0)); // This pow might need to be consistent or handled inside ReflectionEngineV2
+                    reflection.rgb = pow(reflection.rgb * 2.0, vec3(8.0));
                 }
             #else // Fallback to simple reflections if rough is off
                 reflection = SimpleReflection(viewPos.xyz, normal, dither, far, cameraPosition, previousCameraPosition);
-                reflection.rgb = pow(reflection.rgb * 2.0, vec3(8.0)); // This pow might need to be consistent or handled inside ReflectionEngineV2
+                reflection.rgb = pow(reflection.rgb * 2.0, vec3(8.0));
             #endif
 
 			if (reflection.a < 1.0)
