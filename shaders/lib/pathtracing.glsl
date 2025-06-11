@@ -28,7 +28,7 @@ vec3 viewPosFromDepth(vec2 texCoord, float depthVal) {
 }
 
 vec3 tracePath(vec2 screenCoord, float dither) {
-    return vec3(1.0, 0.0, 0.0); // DEBUG: Force output to bright red
+    return vec3(0.5, 0.5, 0.5); // DEBUG: Force output to mid-grey
 
     // First Intersection (using depth buffer directly for the primary ray)
     float hitDepthSample0 = texture2D(depthtex0, screenCoord).r;
