@@ -28,7 +28,7 @@ vec3 viewPosFromDepth(vec2 texCoord, float depthVal) {
 }
 
 vec3 tracePath(vec2 screenCoord, float dither) {
-    return vec3(0.5, 0.5, 0.5); // DEBUG: Force output to mid-grey
+    // The unconditional return vec3(0.5,0.5,0.5) is removed from here.
 
     // First Intersection (using depth buffer directly for the primary ray)
     float hitDepthSample0 = texture2D(depthtex0, screenCoord).r;
@@ -48,10 +48,9 @@ vec3 tracePath(vec2 screenCoord, float dither) {
     }
 
     // Material for first hit (basic albedo from colortex0)
-    // vec3 albedo0 = texture2D(colortex0, screenCoord).rgb;
-    // albedo0 = pow(albedo0, vec3(2.2)) * 0.5; // Hack: attempt to linearize and reduce pre-lit effect
-    vec3 albedo0 = vec3(0.5, 0.5, 0.5); // DEBUG: Use constant grey albedo
-    return albedo0; // DEBUG: Output albedo0 directly
+    vec3 albedo0 = texture2D(colortex0, screenCoord).rgb; // This line is now active
+    albedo0 = pow(albedo0, vec3(2.2)) * 0.5; // This line is now active. This is the "albedo hack".
+    return albedo0; // DEBUG: Output albedo0 (the result of the hack) directly
 
     // Direct Lighting at first hit
     float NdotL0 = max(0.0, dot(normal0, sunVec)); // sunVec is view space
