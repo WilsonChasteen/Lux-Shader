@@ -127,7 +127,7 @@ vec4 RaytraceV2(
 		if (pos.x < -0.05 || pos.x > 1.05 || pos.y < -0.05 || pos.y > 1.05) {
 			// Placeholder: return a predefined distant Z and specific screen coords.
 			// TODO: Implement skybox sampling or more sophisticated off-screen handling.
-			return vec4(0.0, 0.0, 1.0, length(startRayPos - viewPos));
+			return vec4(-1.0, -1.0, 1.0, length(startRayPos - viewPos));
 		}
 
         // Get depth from depth texture at projected screen position
