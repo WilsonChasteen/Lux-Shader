@@ -1,10 +1,10 @@
-/* 
+/*
 ----------------------------------------------------------------
 Lux Shader by https://github.com/TechDevOnGithub/
-Based on BSL Shaders v7.1.05 by Capt Tatsu https://bitslablab.com 
+Based on BSL Shaders v7.1.05 by Capt Tatsu https://bitslablab.com
 See AGREEMENT.txt for more information.
 ----------------------------------------------------------------
-*/ 
+*/
 
 #define ABOUT 0                                                 // [0]
 
@@ -27,7 +27,7 @@ See AGREEMENT.txt for more information.
 // #define REFLECTION_RAIN
 #define REFLECTION_RAIN_TYPE 0                                  // [0 1]
 #define REFLECTION_ROUGH
-// #define REFLECTION_ENGINE_V2 0 // [0 1] 0: Off, 1: On - Enables state-of-the-art Screen Space Reflections
+#define REFLECTION_ENGINE_V2 0 // [0 1] 0: Off, 1: On - Enables state-of-the-art Screen Space Reflections
 // #define REFLECTION_PREVIOUS
 // #define PARALLAX
 #define PARALLAX_DEPTH 1.00                                     // [0.25 0.50 0.75 1.00 1.25 1.50 1.75 2.00 2.25 2.50 2.75 3.00 3.25 3.50 3.75 4.00]
@@ -305,3 +305,5 @@ const float shadowMapBias = 1.0 - 25.6 / shadowDistance;
 #define AURORA_PROBABILITY 1.0                                  // [0.0 0.05 0.10 0.15 0.20 0.25 0.30 0.35 0.40 0.45 0.50 0.55 0.60 0.65 0.70 0.75 0.80 0.85 0.90 0.95 1.0]
 
 #define GLOWING_ORES
+
+[end of shaders/lib/settings.glsl]
